@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Export{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Export</h1>
+    <p class="page-sub">Download target data as CSV or Excel</p>
+  </div>
+</div>
+
+<div class="export-grid">
+
+  <div class="export-card">
+    <div class="export-card-icon">📄</div>
+    <div class="export-card-title">All Targets — CSV</div>
+    <div class="export-card-desc">
+      All companies sorted by rank score. Includes signals, flags, revenue estimate, status.
+    </div>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-navy btn-sm">Download CSV</a>
+  </div>
+
+  <div class="export-card">
+    <div class="export-card-icon">📊</div>
+    <div class="export-card-title">Full Export — Excel</div>
+    <div class="export-card-desc">
+      Multi-sheet workbook: Targets, Contacts, Outreach Log. Navy header formatting included.
+    </div>
+    <a href="{{ url_for('export_excel') }}" class="btn btn-navy btn-sm">Download Excel</a>
+  </div>
+
+  <div class="export-card">
+    <div class="export-card-icon">⭐</div>
+    <div class="export-card-title">High-Rank Targets (70+)</div>
+    <div class="export-card-desc">
+      Only companies with rank score ≥ 70. Best-fit acquisition targets.
+    </div>
+    <a href="{{ url_for('export_csv') }}?score=high" class="btn btn-gold btn-sm">Download CSV</a>
+  </div>
+
+  <div class="export-card">
+    <div class="export-card-icon">📬</div>
+    <div class="export-card-title">Uncontacted Targets</div>
+    <div class="export-card-desc">
+      All acquirable targets not yet reached. Ready for outreach campaigns.
+    </div>
+    <a href="{{ url_for('export_csv') }}?status=uncontacted" class="btn btn-outline btn-sm">Download CSV</a>
+  </div>
+
+</div>
+
+<div class="card" style="margin-top:1.5rem">
+  <div class="card-header">
+    <span class="card-title">Custom Export</span>
+  </div>
+  <div class="card-body">
+    <form id="customExportForm" style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end">
+      <div class="filter-group">
+        <label class="filter-label">State</label>
+        <select class="filter-select" id="exportState">
+          <option value="">All States</option>
+          {% for name, abbr, rank in priority_states %}
+          <option value="{{ abbr }}">{{ abbr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select class="filter-select" id="exportStatus">
+          <option value="">All Statuses</option>
+          {% for val, label in pipeline_statuses %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Score</label>
+        <select class="filter-select" id="exportScore">
+          <option value="">All Scores</option>
+          <option value="high">70+ Only</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button type="button" onclick="customExport('csv')" class="btn btn-navy btn-sm">CSV</button>
+        <button type="button" onclick="customExport('excel')" class="btn btn-outline btn-sm">Excel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function customExport(fmt) {
+  const state  = document.getElementById('exportState').value;
+  const status = document.getElementById('exportStatus').value;
+  const score  = document.getElementById('exportScore').value;
+  const params = new URLSearchParams();
+  if (state)  params.set('state',  state);
+  if (status) params.set('status', status);
+  if (score)  params.set('score',  score);
+  const base = fmt === 'csv' ? '/api/export/csv' : '/api/export/excel';
+  window.location.href = base + (params.toString() ? '?' + params : '');
+}
+</script>
+{% endblock %}

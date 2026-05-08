@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Add Target{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('companies') }}" class="text-muted text-sm">← All Targets</a>
+    <h1 class="page-title" style="margin-top:.25rem">Add Acquisition Target</h1>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('company_add') }}">
+
+  <div class="form-section">
+    <div class="form-section-title">Company Info</div>
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label class="form-label">Company Name *</label>
+        <input class="form-input" name="company_name" required placeholder="Practice name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Website</label>
+        <input class="form-input" name="website_url" type="url" placeholder="https://…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input class="form-input" name="phone" type="tel" placeholder="(555) 000-0000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" name="email" type="email" placeholder="info@company.com">
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" name="description" rows="2" placeholder="One clear sentence describing services"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Classification</div>
+    <div class="form-grid-3">
+      <div class="form-group">
+        <label class="form-label">Company Type</label>
+        <select class="form-select" name="company_type">
+          {% for val, label in company_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Delivery Setting</label>
+        <select class="form-select" name="delivery_setting">
+          {% for val, label in delivery_settings %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Revenue Estimate</label>
+        <select class="form-select" name="revenue_estimate">
+          {% for val, label in revenue_estimates %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Funding Status</label>
+        <select class="form-select" name="funding_status">
+          {% for val, label in funding_statuses %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rank Score (1–100)</label>
+        <input class="form-input" name="rank_score" type="number" min="1" max="100" value="50" placeholder="50">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pipeline Status</label>
+        <select class="form-select" name="status">
+          {% for val, label in pipeline_statuses %}
+          <option value="{{ val }}" {% if val == 'uncontacted' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Location</div>
+    <div class="form-grid-3">
+      <div class="form-group form-full">
+        <label class="form-label">Street Address</label>
+        <input class="form-input" name="address" placeholder="123 Main St">
+      </div>
+      <div class="form-group">
+        <label class="form-label">City</label>
+        <input class="form-input" name="city" placeholder="City">
+      </div>
+      <div class="form-group">
+        <label class="form-label">State</label>
+        <select class="form-select" name="state">
+          <option value="">Select…</option>
+          {% for name, abbr, rank in priority_states %}
+          <option value="{{ abbr }}">{{ abbr }} — {{ name }}</option>
+          {% endfor %}
+          <option disabled>────</option>
+          {% set other_states = [("AL","Alabama"),("AK","Alaska"),("AR","Arkansas"),("AZ","Arizona"),("CA","California"),("CT","Connecticut"),("DE","Delaware"),("HI","Hawaii"),("ID","Idaho"),("IA","Iowa"),("KS","Kansas"),("KY","Kentucky"),("LA","Louisiana"),("ME","Maine"),("MD","Maryland"),("MA","Massachusetts"),("MS","Mississippi"),("MO","Missouri"),("MT","Montana"),("NE","Nebraska"),("NV","Nevada"),("NH","New Hampshire"),("NJ","New Jersey"),("NM","New Mexico"),("NY","New York"),("ND","North Dakota"),("OK","Oklahoma"),("OR","Oregon"),("RI","Rhode Island"),("SD","South Dakota"),("UT","Utah"),("VT","Vermont"),("WA","Washington"),("WV","West Virginia"),("WI","Wisconsin"),("WY","Wyoming")] %}
+          {% for abbr, name in other_states %}
+          <option value="{{ abbr }}">{{ abbr }} — {{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zip</label>
+        <input class="form-input" name="zip" placeholder="00000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Year Founded</label>
+        <input class="form-input" name="year_founded" placeholder="e.g. 2008">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employee Count Est.</label>
+        <input class="form-input" name="employee_count_estimate" placeholder="e.g. 10-25">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Primary Contact (optional)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" name="owner_name" placeholder="Dr. Jane Smith">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input class="form-input" name="owner_title" placeholder="Founder & CEO">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input class="form-input" name="owner_phone" type="tel" placeholder="(555) 000-0000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" name="owner_email" type="email" placeholder="dr@company.com">
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">LinkedIn URL</label>
+        <input class="form-input" name="owner_linkedin" placeholder="https://linkedin.com/in/…">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Additional</div>
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" name="notes" rows="3" placeholder="Internal notes about this target…"></textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:.5rem">
+          <input type="checkbox" name="verified" style="accent-color:var(--gold)">
+          <span class="form-label" style="margin:0">Mark as Verified</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="{{ url_for('companies') }}" class="btn btn-ghost">Cancel</a>
+      <button type="submit" class="btn btn-gold">Add Target</button>
+    </div>
+  </div>
+
+</form>
+{% endblock %}

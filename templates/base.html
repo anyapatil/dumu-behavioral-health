@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dumu Holdings{% endblock %} — BH Acquisitions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <a href="/" style="text-decoration:none">
+      <span class="brand-name">Dumu Holdings</span>
+      <span class="brand-sub">Behavioral Health M&amp;A</span>
+    </a>
+  </div>
+  <ul class="nav-links">
+    <li><a href="{{ url_for('dashboard') }}"
+           class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a></li>
+    <li><a href="{{ url_for('companies') }}"
+           class="nav-link {% if request.endpoint in ['companies','company_detail','company_add'] %}active{% endif %}">Targets</a></li>
+    <li><a href="{{ url_for('flagged') }}"
+           class="nav-link {% if request.endpoint == 'flagged' %}active{% endif %}">
+      Flagged
+      {% set flag_count = flagged_count|default(0) %}
+    </a></li>
+    <li><a href="{{ url_for('outreach') }}"
+           class="nav-link {% if request.endpoint == 'outreach' %}active{% endif %}">Outreach</a></li>
+    <li><a href="{{ url_for('export_page') }}"
+           class="nav-link {% if request.endpoint == 'export_page' %}active{% endif %}">Export</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="{{ url_for('company_add') }}" class="btn btn-gold btn-sm">+ Add Target</a>
+  </div>
+</nav>
+
+<main class="main-content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-messages">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

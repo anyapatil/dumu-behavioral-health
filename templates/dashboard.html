@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Acquisition Dashboard</h1>
+    <p class="page-sub">Psychiatric &amp; behavioral health services — senior care delivery</p>
+  </div>
+  <div style="display:flex;gap:.75rem;align-items:center">
+    {% if scrape_running %}
+    <span class="badge badge-amber">⟳ Scrape running…</span>
+    {% endif %}
+    {% if flagged > 0 %}
+    <a href="{{ url_for('flagged') }}" class="badge badge-amber" style="font-size:.78rem;padding:.3rem .75rem">
+      ⚑ {{ flagged }} flagged for review
+    </a>
+    {% endif %}
+    <a href="{{ url_for('companies') }}" class="btn btn-outline btn-sm">View All Targets</a>
+  </div>
+</div>
+
+<!-- Stats row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Targets</div>
+    <div class="stat-value">{{ total }}</div>
+    <div class="stat-sub">across {{ priority_states|length }} priority states</div>
+  </div>
+  <div class="stat-card accent">
+    <div class="stat-label">High Rank (70+)</div>
+    <div class="stat-value">{{ high_rank }}</div>
+    <div class="stat-sub">best-fit acquisition targets</div>
+  </div>
+  <div class="stat-card amber">
+    <div class="stat-label">Flagged for Review</div>
+    <div class="stat-value">{{ flagged }}</div>
+    <div class="stat-sub">needs Diana's review</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Contacted</div>
+    <div class="stat-value">{{ contacted }}</div>
+    <div class="stat-sub">in active pipeline</div>
+  </div>
+</div>
+
+<!-- Main grid -->
+<div class="dash-grid">
+
+  <!-- Left: State coverage -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">State Coverage</span>
+      <span class="text-sm text-muted">{{ priority_states|length }} priority markets</span>
+    </div>
+    <div class="state-grid">
+      {% for s in state_grid %}
+        {% set band = 0 %}
+        {% if s.count >= 1  %}{% set band = 1 %}{% endif %}
+        {% if s.count >= 5  %}{% set band = 2 %}{% endif %}
+        {% if s.count >= 15 %}{% set band = 3 %}{% endif %}
+        {% if s.count >= 30 %}{% set band = 4 %}{% endif %}
+      <a href="{{ url_for('companies') }}?state={{ s.abbr }}" style="text-decoration:none">
+        <div class="state-box band-{{ band }}" title="{{ s.name }}">
+          <div class="abbr">{{ s.abbr }}</div>
+          <div class="count">{{ s.count }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Right col -->
+  <div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <span class="card-title">Top States</span>
+        <span class="text-sm text-muted">by target count</span>
+      </div>
+      <div class="card-body" style="padding:.75rem">
+        <div class="chart-wrap">
+          <canvas id="stateChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent Activity</span>
+        <a href="{{ url_for('outreach') }}" class="btn btn-ghost btn-xs">View all →</a>
+      </div>
+      <div class="card-body" style="padding:.5rem 1rem">
+        {% if recent %}
+        <div class="activity-list">
+          {% for log in recent %}
+          <div class="activity-item">
+            <div class="activity-icon">
+              {% if log.channel == 'email'      %}✉️
+              {% elif log.channel == 'phone'    %}📞
+              {% elif log.channel == 'linkedin' %}💼
+              {% elif log.channel == 'referral' %}👥
+              {% else %}📋{% endif %}
+            </div>
+            <div class="activity-meta">
+              <div class="activity-name">
+                <a href="{{ url_for('company_detail', company_id=log.company_id) }}">
+                  {{ log.company.company_name if log.company else 'Unknown' }}
+                </a>
+              </div>
+              <div class="activity-detail">
+                {{ log.channel|capitalize }} ·
+                <span class="badge badge-{% if log.outcome in ['positive','meeting_set'] %}green{% elif log.outcome in ['negative','not_interested'] %}red{% else %}gray{% endif %}" style="font-size:.65rem;padding:.1rem .4rem">
+                  {{ log.outcome|replace('_',' ')|title }}
+                </span>
+                · {{ log.date|format_dt }}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem">
+          <div class="empty-state-icon">📋</div>
+          <div class="empty-state-title">No activity yet</div>
+          <div class="empty-state-sub">Log your first outreach to see it here.</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top 10 targets -->
+{% if top10 %}
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="card-header">
+    <span class="card-title">Top Acquisition Targets</span>
+    <a href="{{ url_for('companies') }}?score=high" class="btn btn-ghost btn-xs">View all 70+ →</a>
+  </div>
+  <table class="top10-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Company</th>
+        <th>Type</th>
+        <th>Setting</th>
+        <th>State</th>
+        <th>Score</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for co in top10 %}
+      <tr>
+        <td class="text-muted text-sm">{{ loop.index }}</td>
+        <td>
+          <a href="{{ url_for('company_detail', company_id=co.id) }}" class="fw-600">{{ co.company_name }}</a>
+          {% if co.verified %}<span class="verified-check" title="Verified">✓</span>{% endif %}
+        </td>
+        <td><span class="badge badge-blue">{{ co.company_type|type_label }}</span></td>
+        <td class="text-muted text-sm">{{ co.delivery_setting|setting_label }}</td>
+        <td class="text-muted">{{ co.state or '—' }}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <span class="score-pill {{ co.score_tier }}">{{ co.rank_score }}</span>
+            <div class="score-bar-wrap"><div class="score-bar-fill score-{{ co.score_tier }}" style="width:{{ co.rank_score }}%"></div></div>
+          </div>
+        </td>
+        <td>
+          <span class="badge {% if co.status == 'uncontacted' %}badge-gray{% elif co.status == 'contacted' %}badge-blue{% elif co.status == 'responded' %}badge-purple{% elif co.status == 'meeting_scheduled' %}badge-green{% elif co.status == 'passed' %}badge-red{% else %}badge-amber{% endif %}">
+            {{ co.status|status_label }}
+          </span>
+        </td>
+        <td>
+          <a href="{{ url_for('company_detail', company_id=co.id) }}" class="btn btn-ghost btn-xs">View →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Discovery panel -->
+<div class="discover-panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+    <h3 style="margin:0">Run Company Discovery</h3>
+    <div style="display:flex;gap:.75rem;align-items:center">
+      <button class="btn btn-outline btn-sm" onclick="toggleAll(true)">Select All</button>
+      <button class="btn btn-outline btn-sm" onclick="toggleAll(false)">Clear</button>
+      <button id="runBtn" class="btn btn-gold" onclick="runDiscovery()">▶ Run Discovery</button>
+    </div>
+  </div>
+  <p class="text-sm text-muted" style="margin-bottom:.75rem">
+    Searches Google for geriatric psychiatry / behavioral health practices serving SNFs, ALFs, and memory care.
+    Applies include/exclude keyword logic and auto-scores results.
+  </p>
+
+  <div class="state-checkboxes">
+    {% for name, abbr, rank in priority_states %}
+    <div class="state-check">
+      <label>
+        <input type="checkbox" class="state-cb" value="{{ abbr }}" {% if rank <= 5 %}checked{% endif %}>
+        <span>{{ abbr }}</span>
+      </label>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
+      <span class="text-sm text-muted" id="progressLabel">Initializing…</span>
+      <span class="text-sm text-muted" id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="scrape-log" id="scrapeLog"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const top5 = {{ top5 | tojson }};
+if (top5.length) {
+  new Chart(document.getElementById('stateChart'), {
+    type: 'bar',
+    data: {
+      labels: top5.map(s => s.abbr),
+      datasets: [{ data: top5.map(s => s.count), backgroundColor: '#c9a84c', borderColor: '#a8893d', borderWidth: 1, borderRadius: 5, hoverBackgroundColor: '#e8c97d' }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,.05)' }, ticks: { font: { size: 11 }, color: '#6b6860' }, beginAtZero: true, precision: 0 },
+        y: { grid: { display: false }, ticks: { font: { size: 12, weight: '600' }, color: '#1a1a2e' } }
+      }
+    }
+  });
+}
+
+function toggleAll(checked) {
+  document.querySelectorAll('.state-cb').forEach(cb => cb.checked = checked);
+}
+
+let pollInterval;
+function runDiscovery() {
+  const states = [...document.querySelectorAll('.state-cb:checked')].map(c => c.value);
+  if (!states.length) { alert('Select at least one state.'); return; }
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').textContent = '⟳ Running…';
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('scrapeLog').textContent = '';
+
+  fetch('/scrape/run', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ states })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { alert(data.error); resetBtn(); return; }
+    const total = states.length;
+    pollInterval = setInterval(async () => {
+      const s = await fetch('/scrape/status').then(r => r.json());
+      const log = document.getElementById('scrapeLog');
+      log.textContent = s.log.join('\n');
+      log.scrollTop = log.scrollHeight;
+      const done = Object.keys(s.counts).length;
+      const pct = total ? Math.round(done / total * 100) : 0;
+      document.getElementById('progressFill').style.width = pct + '%';
+      document.getElementById('progressPct').textContent = pct + '%';
+      document.getElementById('progressLabel').textContent =
+        s.running ? `Scanning… (${done}/${total} states)` : `Complete — ${done} states scanned`;
+      if (!s.running) { clearInterval(pollInterval); resetBtn(); setTimeout(() => location.reload(), 1500); }
+    }, 2000);
+  });
+}
+function resetBtn() {
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('runBtn').textContent = '▶ Run Discovery';
+}
+</script>
+{% endblock %}

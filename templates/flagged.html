@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Flagged for Review{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Flagged for Review</h1>
+    <p class="page-sub">{{ companies|length }} companies pending Diana's review — soft exclusion signals found</p>
+  </div>
+  <a href="{{ url_for('companies') }}" class="btn btn-outline btn-sm">← All Targets</a>
+</div>
+
+{% if companies %}
+<div style="background:var(--amber-bg);border:1px solid #e5d696;border-radius:var(--radius);padding:.85rem 1.25rem;margin-bottom:1.5rem;font-size:.84rem;color:var(--amber)">
+  <strong>Instructions for Diana:</strong> These companies passed the initial clinical/setting keyword check but triggered soft-flag terms (e.g. substance use disorder, multi-specialty, EAP).
+  Review each one and either <strong>Approve</strong> (add to target list) or <strong>Reject</strong> (permanently delete).
+</div>
+
+{% for co in companies %}
+<div class="flagged-card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
+    <div style="flex:1;min-width:0">
+      <div class="flagged-name">
+        <a href="{{ url_for('company_detail', company_id=co.id) }}">{{ co.company_name }}</a>
+      </div>
+      <div class="flagged-meta">
+        <span class="badge badge-blue">{{ co.company_type|type_label }}</span>
+        <span class="badge badge-gray">{{ co.delivery_setting|setting_label }}</span>
+        {% if co.state %}<span class="text-muted">{{ co.state }}</span>{% endif %}
+        {% if co.city %}<span class="text-muted">· {{ co.city }}</span>{% endif %}
+        <span class="text-muted">· Score: <strong>{{ co.rank_score }}</strong></span>
+      </div>
+
+      {% if co.exclude_flags %}
+      <div style="margin:.5rem 0">
+        <span class="text-sm text-muted fw-600" style="margin-right:.35rem">Flags:</span>
+        {% for flag in co.exclude_flags.split(';') %}
+        <span class="flag-tag">{{ flag.strip() }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if co.positive_signals %}
+      <div style="margin:.35rem 0">
+        <span class="text-sm text-muted fw-600" style="margin-right:.35rem">Signals:</span>
+        {% for sig in co.positive_signals.split(';') %}
+        <span class="signal-tag">{{ sig.strip() }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if co.description %}
+      <p style="font-size:.82rem;color:var(--text-muted);margin-top:.5rem;line-height:1.5">{{ co.description }}</p>
+      {% endif %}
+
+      {% if co.website_url %}
+      <a href="{{ co.website_url }}" target="_blank" rel="noopener" class="text-sm text-gold" style="margin-top:.4rem;display:inline-block">↗ {{ co.website_url }}</a>
+      {% endif %}
+    </div>
+
+    <div class="flagged-actions" style="flex-shrink:0">
+      <a href="{{ url_for('company_detail', company_id=co.id) }}" class="btn btn-outline btn-sm">View</a>
+      <form action="{{ url_for('flagged_approve', company_id=co.id) }}" method="post" style="display:inline">
+        <button type="submit" class="btn btn-green btn-sm">✓ Approve</button>
+      </form>
+      <form action="{{ url_for('flagged_reject', company_id=co.id) }}" method="post" style="display:inline"
+            onsubmit="return confirm('Permanently delete {{ co.company_name }}?')">
+        <button type="submit" class="btn btn-danger btn-sm">✕ Reject</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="empty-state" style="padding:4rem 1rem">
+  <div class="empty-state-icon">✅</div>
+  <div class="empty-state-title">No flagged companies</div>
+  <div class="empty-state-sub">All companies have been reviewed. Run discovery to find new targets.</div>
+</div>
+{% endif %}
+{% endblock %}

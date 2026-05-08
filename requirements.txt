@@ -1,0 +1,9 @@
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+sqlalchemy==2.0.30
+gunicorn==22.0.0
+beautifulsoup4==4.12.3
+requests==2.32.3
+googlesearch-python==1.2.3
+pandas==2.2.2
+openpyxl==3.1.2

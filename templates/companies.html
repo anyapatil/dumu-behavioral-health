@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Targets{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Acquisition Targets</h1>
+    <p class="page-sub">{{ pagination.total }} total · sorted by rank score</p>
+  </div>
+  <div style="display:flex;gap:.75rem">
+    <a href="{{ url_for('export_page') }}" class="btn btn-outline btn-sm">Export</a>
+    <a href="{{ url_for('company_add') }}" class="btn btn-gold btn-sm">+ Add Target</a>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<form method="get" action="{{ url_for('companies') }}">
+<div class="filter-bar">
+  <div class="filter-group">
+    <label class="filter-label">Search</label>
+    <input class="filter-input" name="search" value="{{ search }}" placeholder="Company, city, email…">
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">State</label>
+    <select class="filter-select" name="state">
+      <option value="">All States</option>
+      {% for s in db_states %}
+      <option value="{{ s }}" {% if s == state_f %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Type</label>
+    <select class="filter-select" name="type">
+      <option value="">All Types</option>
+      {% for val, label in company_types %}
+      <option value="{{ val }}" {% if val == type_f %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Setting</label>
+    <select class="filter-select" name="setting">
+      <option value="">All Settings</option>
+      {% for val, label in delivery_settings %}
+      <option value="{{ val }}" {% if val == setting_f %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Score</label>
+    <select class="filter-select" name="score">
+      <option value="">All Scores</option>
+      <option value="high"  {% if score_f == 'high'  %}selected{% endif %}>70+ (High)</option>
+      <option value="mid"   {% if score_f == 'mid'   %}selected{% endif %}>50–69 (Mid)</option>
+      <option value="low"   {% if score_f == 'low'   %}selected{% endif %}>Under 50</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Status</label>
+    <select class="filter-select" name="status">
+      <option value="all" {% if status_f == 'all' or not status_f %}selected{% endif %}>All Statuses</option>
+      {% for val, label in pipeline_statuses %}
+      <option value="{{ val }}" {% if val == status_f %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Acquirable</label>
+    <select class="filter-select" name="acquirable">
+      <option value="">All</option>
+      <option value="yes" {% if acquirable_f == 'yes' %}selected{% endif %}>Yes</option>
+      <option value="no"  {% if acquirable_f == 'no'  %}selected{% endif %}>No</option>
+    </select>
+  </div>
+  <div class="filter-actions">
+    <button type="submit" class="btn btn-navy btn-sm">Apply</button>
+    <a href="{{ url_for('companies') }}" class="btn btn-ghost btn-sm">Clear</a>
+  </div>
+</div>
+</form>
+
+<!-- Table -->
+<div class="table-wrap">
+  <div class="table-toolbar">
+    <div class="toolbar-left">
+      <span class="record-count">
+        {{ pagination.total }} target{{ 's' if pagination.total != 1 }}
+        {% if pagination.pages > 1 %} · page {{ pagination.page }}/{{ pagination.pages }}{% endif %}
+      </span>
+    </div>
+    <div class="toolbar-right">
+      <a href="{{ url_for('export_csv') }}{% if state_f or status_f or score_f %}?{% if state_f %}state={{ state_f }}&{% endif %}{% if status_f %}status={{ status_f }}&{% endif %}{% if score_f %}score={{ score_f }}{% endif %}{% endif %}" class="btn btn-outline btn-sm">CSV</a>
+      <a href="{{ url_for('export_excel') }}" class="btn btn-outline btn-sm">Excel</a>
+    </div>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>
+          <a href="{{ url_for('companies', sort='company_name', dir='asc' if sort=='company_name' and direction=='desc' else 'asc', state=state_f, type=type_f, setting=setting_f, score=score_f, status=status_f, search=search) }}">
+            Company <span class="sort-arrow">{% if sort == 'company_name' %}{{ '↓' if direction == 'desc' else '↑' }}{% endif %}</span>
+          </a>
+        </th>
+        <th>Type</th>
+        <th>Setting</th>
+        <th>
+          <a href="{{ url_for('companies', sort='state', dir='asc' if sort=='state' and direction=='desc' else 'asc', state=state_f, type=type_f, setting=setting_f, score=score_f, status=status_f, search=search) }}">
+            State <span class="sort-arrow">{% if sort == 'state' %}{{ '↓' if direction == 'desc' else '↑' }}{% endif %}</span>
+          </a>
+        </th>
+        <th>City</th>
+        <th>
+          <a href="{{ url_for('companies', sort='rank_score', dir='asc' if sort=='rank_score' and direction=='desc' else 'desc', state=state_f, type=type_f, setting=setting_f, score=score_f, status=status_f, search=search) }}">
+            Score <span class="sort-arrow">{% if sort == 'rank_score' %}{{ '↓' if direction == 'desc' else '↑' }}{% endif %}</span>
+          </a>
+        </th>
+        <th>Revenue Est</th>
+        <th>
+          <a href="{{ url_for('companies', sort='status', dir='asc' if sort=='status' and direction=='desc' else 'asc', state=state_f, type=type_f, setting=setting_f, score=score_f, status=status_f, search=search) }}">
+            Status
+          </a>
+        </th>
+        <th>Verified</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for co in companies %}
+      <tr class="{% if co.status == 'flagged_for_review' %}row-flagged{% elif co.verified %}row-verified{% elif co.rank_score >= 70 %}row-high{% endif %}">
+        <td>
+          <a href="{{ url_for('company_detail', company_id=co.id) }}" class="fw-600 truncate" style="max-width:200px;display:block">{{ co.company_name }}</a>
+          {% if co.city %}<div class="text-muted text-sm">{{ co.city }}</div>{% endif %}
+        </td>
+        <td>
+          <span class="badge badge-blue">
+            {% if co.company_type == 'psychiatry' %}Psych
+            {% elif co.company_type == 'psychology' %}Psych
+            {% elif co.company_type == 'behavioral_health' %}BH
+            {% elif co.company_type == 'neuropsychology' %}Neuro
+            {% else %}Combined{% endif %}
+          </span>
+        </td>
+        <td class="text-muted text-sm truncate">{{ co.delivery_setting|setting_label }}</td>
+        <td class="text-muted">{{ co.state or '—' }}</td>
+        <td class="text-muted text-sm truncate">{{ co.city or '—' }}</td>
+        <td>
+          <span class="score-pill {{ co.score_tier }}">{{ co.rank_score or '—' }}</span>
+        </td>
+        <td class="text-muted text-sm">{{ co.revenue_estimate or '—' }}</td>
+        <td>
+          <span class="editable-cell" data-id="{{ co.id }}" data-field="status" data-value="{{ co.status }}">
+            <span class="badge {% if co.status == 'uncontacted' %}badge-gray{% elif co.status == 'contacted' %}badge-blue{% elif co.status == 'responded' %}badge-purple{% elif co.status == 'meeting_scheduled' %}badge-green{% elif co.status == 'passed' %}badge-red{% elif co.status == 'flagged_for_review' %}badge-amber{% endif %}">
+              {{ co.status|status_label }}
+            </span>
+          </span>
+        </td>
+        <td style="text-align:center">
+          {% if co.verified %}
+          <span class="verified-check" title="Verified">✓</span>
+          {% else %}
+          <span class="unverified-x">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('company_detail', company_id=co.id) }}" class="btn btn-ghost btn-xs">View →</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="10">
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-title">No targets found</div>
+            <div class="empty-state-sub">Try adjusting your filters or run discovery.</div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="pagination">
+    {% if pagination.has_prev %}
+    <a class="page-btn" href="{{ url_for('companies', page=pagination.prev_num, sort=sort, dir=direction, state=state_f, type=type_f, setting=setting_f, score=score_f, status=status_f, search=search) }}">‹</a>
+    {% else %}
+    <span class="page-btn disabled">‹</span>
+    {% endif %}
+
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+        <a class="page-btn {% if p == pagination.page %}active{% endif %}"
+           href="{{ url_for('companies', page=p, sort=sort, dir=direction, state=state_f, type=type_f, setting=setting_f, score=score_f, status=status_f, search=search) }}">{{ p }}</a>
+      {% else %}
+        <span class="page-ellipsis">…</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagination.has_next %}
+    <a class="page-btn" href="{{ url_for('companies', page=pagination.next_num, sort=sort, dir=direction, state=state_f, type=type_f, setting=setting_f, score=score_f, status=status_f, search=search) }}">›</a>
+    {% else %}
+    <span class="page-btn disabled">›</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Inline status edit
+document.querySelectorAll('.editable-cell[data-field="status"]').forEach(cell => {
+  cell.addEventListener('click', function(e) {
+    if (this.querySelector('select')) return;
+    const id    = this.dataset.id;
+    const cur   = this.dataset.value;
+    const statuses = {{ pipeline_statuses | tojson }};
+    const sel = document.createElement('select');
+    sel.className = 'cell-select';
+    statuses.forEach(([v, l]) => {
+      const opt = new Option(l, v);
+      if (v === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    this.innerHTML = '';
+    this.appendChild(sel);
+    sel.focus();
+
+    const save = async (val) => {
+      this.classList.add('saving');
+      await fetch(`/api/companies/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: val })
+      });
+      this.dataset.value = val;
+      location.reload();
+    };
+    sel.addEventListener('change', () => save(sel.value));
+    sel.addEventListener('blur', () => location.reload());
+  });
+});
+</script>
+{% endblock %}

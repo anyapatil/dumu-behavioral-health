@@ -1,0 +1,8 @@
+venv/
+*.db
+__pycache__/
+*.pyc
+flask.log
+outputs/discovery_run.log
+outputs/enrich_run.log
+.DS_Store

@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% block title %}{{ company.company_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('companies') }}" class="text-muted text-sm">← All Targets</a>
+    <h1 class="page-title" style="margin-top:.25rem">{{ company.company_name }}</h1>
+  </div>
+  <div style="display:flex;gap:.75rem;align-items:center">
+    {% if company.website_url %}
+    <a href="{{ company.website_url }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">↗ Website</a>
+    {% endif %}
+    <button onclick="document.getElementById('outreachModal').classList.add('open')" class="btn btn-navy btn-sm">Log Outreach</button>
+    <button onclick="document.getElementById('contactModal').classList.add('open')" class="btn btn-gold btn-sm">+ Contact</button>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <!-- Left: Profile -->
+  <div>
+    <div class="profile-card" style="margin-bottom:1.25rem">
+      <div class="profile-header">
+        <div class="profile-name">{{ company.company_name }}</div>
+        <div class="profile-meta">
+          <span class="badge badge-blue">{{ company.company_type|type_label }}</span>
+          <span class="badge badge-gray">{{ company.delivery_setting|setting_label }}</span>
+          {% if company.state %}
+          <span class="badge badge-navy">{{ company.state }}</span>
+          {% endif %}
+          {% if company.verified %}
+          <span class="badge badge-green">✓ Verified</span>
+          {% endif %}
+          {% if company.status == 'flagged_for_review' %}
+          <span class="badge badge-amber">⚑ Flagged</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="profile-body">
+        {% if company.description %}
+        <p style="font-size:.9rem;line-height:1.6;color:var(--text-muted);margin-bottom:1rem">{{ company.description }}</p>
+        {% endif %}
+
+        <div class="detail-field">
+          <span class="detail-key">Phone</span>
+          <span class="detail-val">
+            {% if company.phone %}<a href="tel:{{ company.phone }}">{{ company.phone }}</a>{% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Email</span>
+          <span class="detail-val">
+            {% if company.email %}<a href="mailto:{{ company.email }}">{{ company.email }}</a>{% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Website</span>
+          <span class="detail-val">
+            {% if company.website_url %}<a href="{{ company.website_url }}" target="_blank" rel="noopener">{{ company.website_url }}</a>{% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Address</span>
+          <span class="detail-val">
+            {{ [company.address, company.city, company.state, company.zip]|select|join(', ') or '—' }}
+          </span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Year Founded</span>
+          <span class="detail-val">{{ company.year_founded or '—' }}</span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Employees</span>
+          <span class="detail-val">{{ company.employee_count_estimate or '—' }}</span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Revenue Est.</span>
+          <span class="detail-val editable-field" data-id="{{ company.id }}" data-field="revenue_estimate" data-value="{{ company.revenue_estimate or '' }}">
+            {{ company.revenue_estimate or '—' }}
+          </span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Funding Status</span>
+          <span class="detail-val editable-field" data-id="{{ company.id }}" data-field="funding_status" data-value="{{ company.funding_status or '' }}">
+            <span class="badge {% if company.funding_status == 'founder_operated' %}badge-green{% elif company.funding_status in ['flagged_pe','flagged_vc'] %}badge-red{% else %}badge-gray{% endif %}">
+              {{ company.funding_status|replace('_',' ')|title if company.funding_status else '—' }}
+            </span>
+          </span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Last Scraped</span>
+          <span class="detail-val text-muted">{{ company.last_scraped|format_dt }}</span>
+        </div>
+        <div class="detail-field">
+          <span class="detail-key">Last Updated</span>
+          <span class="detail-val text-muted">{{ company.last_updated|format_dt }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signals -->
+    {% if company.positive_signals %}
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header">
+        <span class="card-title">Positive Signals Found</span>
+        <span class="text-sm text-muted">boost rank score</span>
+      </div>
+      <div class="card-body">
+        <div class="pill-group">
+          {% for signal in company.positive_signals.split(';') %}
+          <span class="signal-tag">{{ signal.strip() }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if company.exclude_flags %}
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header">
+        <span class="card-title">Exclude Flags</span>
+        <span class="text-sm text-muted">review required</span>
+      </div>
+      <div class="card-body">
+        <div class="pill-group">
+          {% for flag in company.exclude_flags.split(';') %}
+          <span class="flag-tag">{{ flag.strip() }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Contacts -->
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header">
+        <span class="card-title">Contacts</span>
+        <button onclick="document.getElementById('contactModal').classList.add('open')" class="btn btn-ghost btn-xs">+ Add</button>
+      </div>
+      <div class="card-body">
+        {% if company.contacts %}
+        <div class="contacts-list" id="contactsList">
+          {% for ct in company.contacts %}
+          <div class="contact-card {% if ct.is_primary %}primary{% endif %}" id="ct-{{ ct.id }}">
+            {% if ct.is_primary %}<span class="badge badge-gold" style="margin-bottom:.4rem;font-size:.65rem">Primary</span>{% endif %}
+            <div class="contact-name">{{ ct.name or '—' }}</div>
+            <div class="contact-title">{{ ct.title or '' }}</div>
+            <div class="contact-links">
+              {% if ct.phone %}<a href="tel:{{ ct.phone }}">📞 {{ ct.phone }}</a>{% endif %}
+              {% if ct.email %}<a href="mailto:{{ ct.email }}">✉ {{ ct.email }}</a>{% endif %}
+              {% if ct.linkedin_url %}<a href="{{ ct.linkedin_url }}" target="_blank" rel="noopener">LinkedIn ↗</a>{% endif %}
+            </div>
+            <div class="contact-actions">
+              <button class="btn btn-ghost btn-xs" onclick="deleteContact({{ ct.id }})">✕</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem">
+          <div class="empty-state-icon">👤</div>
+          <div class="empty-state-title">No contacts yet</div>
+          <div class="empty-state-sub">
+            <button onclick="findOwner()" class="btn btn-outline btn-sm" style="margin-top:.5rem">Find Owner on LinkedIn</button>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Outreach log -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Outreach Log</span>
+        <button onclick="document.getElementById('outreachModal').classList.add('open')" class="btn btn-ghost btn-xs">+ Log</button>
+      </div>
+      <div class="card-body">
+        {% if logs %}
+        <div class="timeline">
+          {% for log in logs %}
+          <div class="timeline-item">
+            <div class="timeline-dot {{ log.outcome }}">
+              {% if log.channel == 'email' %}✉{% elif log.channel == 'phone' %}📞{% elif log.channel == 'linkedin' %}💼{% else %}📋{% endif %}
+            </div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="badge {% if log.outcome in ['positive','meeting_set'] %}badge-green{% elif log.outcome in ['negative','not_interested'] %}badge-red{% else %}badge-gray{% endif %}">
+                  {{ log.outcome|replace('_',' ')|title }}
+                </span>
+                <span class="text-muted text-sm">{{ log.channel|capitalize }}</span>
+                <span class="timeline-date">{{ log.date|format_dt }}</span>
+                <button class="btn btn-ghost btn-xs" onclick="deleteLog({{ log.id }})" style="margin-left:auto">✕</button>
+              </div>
+              {% if log.notes %}
+              <div class="timeline-notes">{{ log.notes }}</div>
+              {% endif %}
+              {% if log.follow_up_date %}
+              <div class="timeline-followup">↻ Follow up: {{ log.follow_up_date }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem">
+          <div class="empty-state-icon">📬</div>
+          <div class="empty-state-title">No outreach logged</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Sidebar -->
+  <div>
+    <!-- Score dial -->
+    <div class="sidebar-card" style="text-align:center">
+      <div class="sidebar-card-title">Rank Score</div>
+      <div class="score-dial {{ company.score_tier }}">
+        <div class="score-dial-value">{{ company.rank_score or 0 }}</div>
+        <div class="score-dial-label">out of 100</div>
+      </div>
+      <div style="margin-top:.75rem">
+        <div class="score-bar-wrap" style="width:100%;display:block;height:10px">
+          <div class="score-bar-fill score-{{ company.score_tier }}" style="width:{{ company.rank_score or 0 }}%"></div>
+        </div>
+      </div>
+      <div style="margin-top:.75rem">
+        <label class="filter-label" style="display:block;margin-bottom:.35rem">Adjust Score</label>
+        <input type="number" id="scoreInput" min="1" max="100" value="{{ company.rank_score or 50 }}"
+               class="form-input" style="width:80px;text-align:center;margin:0 auto;display:block"
+               onchange="patchField('rank_score', this.value)">
+      </div>
+    </div>
+
+    <!-- Pipeline status -->
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Pipeline Status</div>
+      <select id="statusSelect" class="form-select" onchange="patchField('status', this.value)">
+        {% for val, label in pipeline_statuses %}
+        <option value="{{ val }}" {% if val == company.status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Quick fields -->
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Target Profile</div>
+
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">Company Type</label>
+        <select class="form-select form-select-sm" onchange="patchField('company_type', this.value)">
+          {% for val, label in company_types %}
+          <option value="{{ val }}" {% if val == company.company_type %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">Delivery Setting</label>
+        <select class="form-select form-select-sm" onchange="patchField('delivery_setting', this.value)">
+          {% for val, label in delivery_settings %}
+          <option value="{{ val }}" {% if val == company.delivery_setting %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">Revenue Estimate</label>
+        <select class="form-select form-select-sm" onchange="patchField('revenue_estimate', this.value)">
+          {% for val, label in revenue_estimates %}
+          <option value="{{ val }}" {% if val == company.revenue_estimate %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label class="form-label">Funding Status</label>
+        <select class="form-select form-select-sm" onchange="patchField('funding_status', this.value)">
+          {% for val, label in funding_statuses %}
+          <option value="{{ val }}" {% if val == company.funding_status %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Flags -->
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Quick Actions</div>
+      <div style="display:flex;flex-direction:column;gap:.5rem">
+        <button onclick="toggleVerified()" class="btn {% if company.verified %}btn-outline{% else %}btn-green{% endif %} btn-sm" id="verifiedBtn">
+          {% if company.verified %}✓ Verified{% else %}Mark Verified{% endif %}
+        </button>
+        <button onclick="toggleAcquirable()" class="btn {% if not company.acquirable %}btn-danger{% else %}btn-outline{% endif %} btn-sm" id="acquirableBtn">
+          {% if company.acquirable %}Mark Not Acquirable{% else %}Mark Acquirable{% endif %}
+        </button>
+        {% if company.status == 'flagged_for_review' %}
+        <form action="{{ url_for('flagged_approve', company_id=company.id) }}" method="post" style="display:inline">
+          <button type="submit" class="btn btn-green btn-sm" style="width:100%">✓ Approve Target</button>
+        </form>
+        <form action="{{ url_for('flagged_reject', company_id=company.id) }}" method="post" style="display:inline"
+              onsubmit="return confirm('Delete this company permanently?')">
+          <button type="submit" class="btn btn-danger btn-sm" style="width:100%">✕ Reject &amp; Delete</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="sidebar-card">
+      <div class="sidebar-card-title">Notes</div>
+      <textarea id="notesField" class="form-textarea" rows="5"
+                placeholder="Internal notes…">{{ company.notes or '' }}</textarea>
+      <button onclick="saveNotes()" class="btn btn-outline btn-sm" style="margin-top:.5rem;width:100%">Save Notes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Log Outreach Modal -->
+<div class="modal-backdrop" id="outreachModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('outreachModal').classList.remove('open')">✕</button>
+    <div class="modal-title">Log Outreach</div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label class="form-label">Channel</label>
+      <select id="oChannel" class="form-select">
+        {% for val, label in channels %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label class="form-label">Outcome</label>
+      <select id="oOutcome" class="form-select">
+        {% for val, label in outcomes %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label class="form-label">Notes</label>
+      <textarea id="oNotes" class="form-textarea" rows="3" placeholder="Details…"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label class="form-label">Follow-up Date</label>
+      <input type="date" id="oFollowup" class="form-input">
+    </div>
+    <div class="form-actions" style="margin-top:0;padding-top:0;border:none">
+      <button onclick="document.getElementById('outreachModal').classList.remove('open')" class="btn btn-ghost">Cancel</button>
+      <button onclick="logOutreach()" class="btn btn-navy">Log Outreach</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Contact Modal -->
+<div class="modal-backdrop" id="contactModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('contactModal').classList.remove('open')">✕</button>
+    <div class="modal-title">Add Contact</div>
+    <div class="form-grid" style="margin-bottom:.75rem">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input id="cName" class="form-input" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input id="cTitle" class="form-input" placeholder="Founder, CEO, etc.">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input id="cPhone" class="form-input" type="tel" placeholder="(555) 000-0000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="cEmail" class="form-input" type="email" placeholder="name@company.com">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label class="form-label">LinkedIn URL</label>
+      <input id="cLinkedin" class="form-input" placeholder="https://linkedin.com/in/…">
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+        <input type="checkbox" id="cPrimary" checked style="accent-color:var(--gold)">
+        <span class="form-label" style="margin:0">Primary contact</span>
+      </label>
+    </div>
+    <div class="form-actions" style="margin-top:0;padding-top:0;border:none">
+      <button onclick="document.getElementById('contactModal').classList.remove('open')" class="btn btn-ghost">Cancel</button>
+      <button onclick="addContact()" class="btn btn-navy">Add Contact</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CO_ID = {{ company.id }};
+
+async function patchField(field, value) {
+  const body = {};
+  body[field] = value;
+  await fetch(`/api/companies/${CO_ID}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+}
+
+async function saveNotes() {
+  await patchField('notes', document.getElementById('notesField').value);
+  const btn = event.target;
+  btn.textContent = 'Saved ✓';
+  setTimeout(() => btn.textContent = 'Save Notes', 1500);
+}
+
+async function toggleVerified() {
+  const btn = document.getElementById('verifiedBtn');
+  const isNow = btn.textContent.trim().startsWith('✓');
+  await patchField('verified', !isNow);
+  location.reload();
+}
+
+async function toggleAcquirable() {
+  const btn = document.getElementById('acquirableBtn');
+  const notAcq = btn.textContent.trim().startsWith('Mark Acquirable');
+  await patchField('acquirable', notAcq);
+  location.reload();
+}
+
+async function logOutreach() {
+  await fetch('/api/outreach', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      company_id:     CO_ID,
+      channel:        document.getElementById('oChannel').value,
+      outcome:        document.getElementById('oOutcome').value,
+      notes:          document.getElementById('oNotes').value,
+      follow_up_date: document.getElementById('oFollowup').value,
+    })
+  });
+  location.reload();
+}
+
+async function addContact() {
+  await fetch(`/api/companies/${CO_ID}/contacts`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name:         document.getElementById('cName').value,
+      title:        document.getElementById('cTitle').value,
+      phone:        document.getElementById('cPhone').value,
+      email:        document.getElementById('cEmail').value,
+      linkedin_url: document.getElementById('cLinkedin').value,
+      is_primary:   document.getElementById('cPrimary').checked,
+    })
+  });
+  location.reload();
+}
+
+async function deleteContact(id) {
+  if (!confirm('Remove this contact?')) return;
+  await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+  location.reload();
+}
+
+async function deleteLog(id) {
+  if (!confirm('Delete this log entry?')) return;
+  await fetch(`/api/outreach/${id}`, { method: 'DELETE' });
+  location.reload();
+}
+
+async function findOwner() {
+  const btn = event.target;
+  btn.textContent = 'Searching…';
+  btn.disabled = true;
+  const r = await fetch(`/api/companies/${CO_ID}/find-owner`, { method: 'POST' });
+  const data = await r.json();
+  if (data.urls && data.urls.length) {
+    const msg = 'LinkedIn profiles found:\n\n' + data.urls.join('\n');
+    alert(msg);
+  } else {
+    alert('No LinkedIn profiles found automatically. Try searching manually.');
+  }
+  btn.textContent = 'Find Owner on LinkedIn';
+  btn.disabled = false;
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  bd.addEventListener('click', e => { if (e.target === bd) bd.classList.remove('open'); });
+});
+</script>
+{% endblock %}

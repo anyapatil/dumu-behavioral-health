@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Outreach Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Outreach Tracker</h1>
+    <p class="page-sub">{{ logs|length }} log entries · {{ followups|length }} follow-ups due</p>
+  </div>
+  <button onclick="document.getElementById('quickModal').classList.add('open')" class="btn btn-gold btn-sm">
+    + Log Outreach
+  </button>
+</div>
+
+{% if followups %}
+<div class="card card-action" style="margin-bottom:1.25rem">
+  <div class="card-header">
+    <span class="card-title">Follow-Ups Due</span>
+    <span class="badge badge-amber">{{ followups|length }}</span>
+  </div>
+  <div class="card-body" style="padding:.5rem 1.25rem">
+    {% for log in followups %}
+    <div class="followup-item">
+      <span class="followup-date {% if log.follow_up_date < today %}overdue{% endif %}">
+        {{ log.follow_up_date }}
+      </span>
+      <div style="flex:1">
+        <a href="{{ url_for('company_detail', company_id=log.company_id) }}" class="fw-600">
+          {{ log.company.company_name if log.company else 'Unknown' }}
+        </a>
+        <span class="text-muted text-sm"> · {{ log.channel|capitalize }} · {{ log.outcome|replace('_',' ')|title }}</span>
+        {% if log.notes %}<div class="text-muted text-sm truncate" style="max-width:400px">{{ log.notes }}</div>{% endif %}
+      </div>
+      <a href="{{ url_for('company_detail', company_id=log.company_id) }}" class="btn btn-ghost btn-xs">View →</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Filters -->
+<form method="get" action="{{ url_for('outreach') }}">
+<div class="filter-bar">
+  <div class="filter-group">
+    <label class="filter-label">Channel</label>
+    <select class="filter-select" name="channel">
+      <option value="">All Channels</option>
+      {% for val, label in channels %}
+      <option value="{{ val }}" {% if val == channel_f %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Outcome</label>
+    <select class="filter-select" name="outcome">
+      <option value="">All Outcomes</option>
+      {% for val, label in outcomes %}
+      <option value="{{ val }}" {% if val == outcome_f %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">From</label>
+    <input class="filter-input" type="date" name="from" value="{{ from_f }}" style="width:140px">
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">To</label>
+    <input class="filter-input" type="date" name="to" value="{{ to_f }}" style="width:140px">
+  </div>
+  <div class="filter-actions">
+    <button type="submit" class="btn btn-navy btn-sm">Apply</button>
+    <a href="{{ url_for('outreach') }}" class="btn btn-ghost btn-sm">Clear</a>
+  </div>
+</div>
+</form>
+
+<!-- Log table -->
+<div class="table-wrap">
+  <div class="table-toolbar">
+    <span class="record-count">{{ logs|length }} entries</span>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Date</th>
+        <th>Channel</th>
+        <th>Outcome</th>
+        <th>Contact</th>
+        <th>Follow-Up</th>
+        <th>Notes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>
+          <a href="{{ url_for('company_detail', company_id=log.company_id) }}" class="fw-600">
+            {{ log.company.company_name if log.company else '—' }}
+          </a>
+        </td>
+        <td class="text-muted text-sm">{{ log.date|format_dt }}</td>
+        <td>{{ log.channel|capitalize }}</td>
+        <td>
+          <span class="badge {% if log.outcome in ['positive','meeting_set'] %}badge-green{% elif log.outcome in ['negative','not_interested'] %}badge-red{% else %}badge-gray{% endif %}">
+            {{ log.outcome|replace('_',' ')|title }}
+          </span>
+        </td>
+        <td class="text-muted text-sm">{{ log.contact.name if log.contact else '—' }}</td>
+        <td class="text-muted text-sm">
+          {% if log.follow_up_date %}
+          <span class="{% if log.follow_up_date < today %}text-sm" style="color:var(--red){% endif %}">
+            {{ log.follow_up_date }}
+          </span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="truncate" style="max-width:200px">{{ log.notes or '—' }}</td>
+        <td>
+          <button class="btn btn-ghost btn-xs" onclick="deleteLog({{ log.id }})">✕</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8">
+          <div class="empty-state">
+            <div class="empty-state-icon">📬</div>
+            <div class="empty-state-title">No outreach logged</div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Quick log modal -->
+<div class="modal-backdrop" id="quickModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('quickModal').classList.remove('open')">✕</button>
+    <div class="modal-title">Log Outreach</div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label class="form-label">Company</label>
+      <select id="qCompany" class="form-select">
+        <option value="">Select company…</option>
+        {% for co in all_companies %}
+        <option value="{{ co.id }}">{{ co.company_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-grid" style="margin-bottom:.75rem">
+      <div class="form-group">
+        <label class="form-label">Channel</label>
+        <select id="qChannel" class="form-select">
+          {% for val, label in channels %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Outcome</label>
+        <select id="qOutcome" class="form-select">
+          {% for val, label in outcomes %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label class="form-label">Notes</label>
+      <textarea id="qNotes" class="form-textarea" rows="3"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label class="form-label">Follow-Up Date</label>
+      <input type="date" id="qFollowup" class="form-input">
+    </div>
+    <div class="form-actions" style="margin:0;padding:0;border:none">
+      <button onclick="document.getElementById('quickModal').classList.remove('open')" class="btn btn-ghost">Cancel</button>
+      <button onclick="quickLog()" class="btn btn-navy">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteLog(id) {
+  if (!confirm('Delete this log entry?')) return;
+  await fetch(`/api/outreach/${id}`, { method: 'DELETE' });
+  location.reload();
+}
+
+async function quickLog() {
+  const co = document.getElementById('qCompany').value;
+  if (!co) { alert('Select a company first.'); return; }
+  await fetch('/api/outreach', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      company_id:     parseInt(co),
+      channel:        document.getElementById('qChannel').value,
+      outcome:        document.getElementById('qOutcome').value,
+      notes:          document.getElementById('qNotes').value,
+      follow_up_date: document.getElementById('qFollowup').value,
+    })
+  });
+  location.reload();
+}
+
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  bd.addEventListener('click', e => { if (e.target === bd) bd.classList.remove('open'); });
+});
+</script>
+{% endblock %}
