@@ -41,10 +41,8 @@ logger = logging.getLogger(__name__)
 def create_app():
     app = Flask(__name__)
 
-    db_path = os.environ.get(
-        "DATABASE_URL",
-        f"sqlite:///{os.path.join(os.getcwd(), 'bh.db')}"
-    )
+    default_db = "sqlite:////data/bh.db" if os.path.isdir("/data") else f"sqlite:///{os.path.join(os.getcwd(), 'bh.db')}"
+    db_path = os.environ.get("DATABASE_URL", default_db)
     if db_path.startswith("postgres://"):
         db_path = db_path.replace("postgres://", "postgresql://", 1)
 
